@@ -327,7 +327,7 @@ function adopt(payload) {
 const TYPES = ["ideation", "iteration", "imitation"];
 const ICON = { ideation: "💡", iteration: "🔄", imitation: "🎭" };
 
-let ZOOM = "week", PID = WEEKS[WEEKS.length - 1].id, FLOOR = 100, VIEW = "overall";
+let ZOOM = "week", PID = "", FLOOR = 100, VIEW = "overall";   // PID set by adopt()
 let SORT = { key: "spend", dir: -1 };
 
 const $ = s => document.querySelector(s);
