@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ovia Spend Report </title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8A%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --ground:      #f7f8fa;
+    --panel:       #ffffff;
+    --panel-2:     #eef0f4;
+    --line:        #dce0e8;
+    --line-soft:   #e8ebf1;
+    --ink:         #14171f;
+    --ink-2:       #5c6478;
+    --ink-3:       #8a92a6;
+    --accent:      #d81b60;
+    --accent-ink:  #ffffff;
+    --team:        #4560c9;
+    --content:     #c07a1e;
+    --residual:    #8a92a6;
+    --ship:        #1d7a4c;
+    --pos:         #1d7a4c;
+    --neg:         #b03030;
+    --shadow:      0 1px 2px rgba(20,23,31,.06), 0 4px 12px rgba(20,23,31,.04);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:    #0d0f14;  --panel:   #161a22;  --panel-2: #1c212b;
+      --line:      #2a3140;  --line-soft: #212734;
+      --ink:       #e8eaf0;  --ink-2:   #9aa3b8;  --ink-3:   #6d7689;
+      --accent:    #ff2d78;  --accent-ink: #12060c;
+      --team:      #7b95ff;  --content: #e0a458;  --residual: #6d7689;
+      --ship:      #4fc98a;  --pos:     #4fc98a;  --neg:     #ff7b7b;
+      --shadow:    0 1px 2px rgba(0,0,0,.4);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:    #0d0f14;  --panel:   #161a22;  --panel-2: #1c212b;
+    --line:      #2a3140;  --line-soft: #212734;
+    --ink:       #e8eaf0;  --ink-2:   #9aa3b8;  --ink-3:   #6d7689;
+    --accent:    #ff2d78;  --accent-ink: #12060c;
+    --team:      #7b95ff;  --content: #e0a458;  --residual: #6d7689;
+    --ship:      #4fc98a;  --pos:     #4fc98a;  --neg:     #ff7b7b;
+    --shadow:    0 1px 2px rgba(0,0,0,.4);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink);
+         font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  header {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 20px; background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(12px); border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+  header .sub { color: var(--ink-3); font-size: 12px; }
+  .grow { flex: 1 1 auto; }
+
+  select, button, input[type="search"] {
+    font: inherit; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); padding: 6px 10px; border-radius: 7px; cursor: pointer;
+  }
+  select:hover, button:hover { border-color: var(--ink-3); }
+  button:focus-visible, select:focus-visible, .row-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.go { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+  button.go:hover { filter: brightness(1.08); border-color: transparent; }
+
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: var(--panel); padding: 6px 12px; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; display: grid; gap: 22px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  section > h2 {
+    margin: 0; padding: 14px 18px 12px; font-size: 11px; font-weight: 700;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3);
+    border-bottom: 1px solid var(--line-soft); display: flex; align-items: baseline; gap: 10px;
+  }
+  section > h2 .note { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 12px; color: var(--ink-3); }
+  .pad { padding: 16px 18px; }
+
+  /* section chrome — hide + reorder, persisted per browser */
+  .grab { cursor: grab; color: var(--ink-3); opacity: 0; letter-spacing: -2px; font-size: 13px; user-select: none; }
+  .hide-btn { opacity: 0; border: 0; background: none; color: var(--ink-3); font-size: 17px; line-height: 1;
+              padding: 0 4px; cursor: pointer; border-radius: 4px; }
+  .hide-btn:hover { color: var(--ink); background: var(--panel-2); }
+  section:hover .grab, section:hover .hide-btn, .grab:focus-visible, .hide-btn:focus-visible { opacity: 1; }
+  section.dragging { opacity: .35; }
+  section.over { outline: 2px dashed var(--accent); outline-offset: 2px; }
+  section[hidden] { display: none; }
+
+  .panel-pop {
+    position: fixed; z-index: 60; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.22); padding: 8px; min-width: 240px;
+  }
+  .panel-pop .row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; font-size: 13px; }
+  .panel-pop .row:hover { background: var(--panel-2); }
+  .panel-pop .row input { accent-color: var(--accent); }
+  .panel-pop .head { display: flex; gap: 8px; padding: 4px 8px 8px; border-bottom: 1px solid var(--line-soft); margin-bottom: 4px; }
+  .panel-pop .head button { flex: 1; font-size: 12px; padding: 4px 8px; }
+
+  .glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line-soft); }
+  .glance .cell { background: var(--panel); padding: 16px 18px; }
+  .glance .k { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+  .glance .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 27px; font-weight: 600; letter-spacing: -.02em; margin-top: 5px; }
+  .glance .d { font-size: 12px; margin-top: 3px; font-family: var(--mono); }
+  .up { color: var(--pos); } .down { color: var(--neg); } .flat { color: var(--ink-3); }
+
+  .split { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  .split div { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 650; color: #fff; min-width: 0; }
+  .split .s-team { background: var(--team); }
+  .split .s-content { background: var(--content); }
+  .split .s-res { background: var(--residual); }
+  .legend { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 14px; }
+  .legend .item { display: flex; gap: 9px; align-items: flex-start; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 3px; margin-top: 5px; flex: none; }
+  .legend .lab { font-size: 12px; color: var(--ink-2); }
+  .legend .amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 600; color: var(--ink); }
+
+  .tw { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: right; padding: 9px 12px; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3);
+             font-weight: 600; border-bottom: 1px solid var(--line); }
+  #batches thead th { cursor: pointer; user-select: none; }
+  #batches thead th:hover { color: var(--ink); }
+  thead th .car { opacity: .45; font-size: 9px; }
+  tbody td { border-bottom: 1px solid var(--line-soft); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.txt { font-family: var(--sans); }
+  td.name { max-width: 380px; overflow: hidden; text-overflow: ellipsis; }
+  .kids td.name { max-width: 320px; }
+
+  .row-head {
+    display: grid; grid-template-columns: 1.6fr .9fr .7fr .7fr .7fr .7fr; gap: 8px; align-items: center;
+    width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line-soft);
+    padding: 11px 18px; border-radius: 0; cursor: pointer;
+  }
+  .row-head:hover { background: var(--panel-2); }
+  .row-head > span { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .row-head > .who { font-family: var(--sans); text-align: left; display: flex; align-items: center; gap: 8px; font-weight: 550; }
+  .tri { color: var(--ink-3); font-size: 10px; width: 10px; transition: transform .15s; display: inline-block; }
+  .row-head[aria-expanded="true"] .tri { transform: rotate(90deg); }
+  .bar-cell { position: relative; }
+  .bar-cell .fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 16px; border-radius: 3px; opacity: .22; }
+  .kids { display: none; background: var(--panel-2); border-bottom: 1px solid var(--line-soft); }
+  .kids.open { display: block; }
+  .kids table { font-size: 13px; }
+  .kids td.txt { color: var(--ink-2); }
+
+  .rowlabels { display: grid; grid-template-columns: 1.6fr .9fr .7fr .7fr .7fr .7fr; gap: 8px; padding: 8px 18px;
+    font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600;
+    border-bottom: 1px solid var(--line); }
+  .rowlabels > span { text-align: right; }
+  .rowlabels > span:first-child { text-align: left; }
+
+  /* output section */
+  .out-head, .out-row {
+    display: grid; grid-template-columns: 1.5fr repeat(4, .6fr) 18px repeat(4, .6fr);
+    gap: 6px; align-items: center; padding: 10px 18px;
+  }
+  .out-head.cols-6, .out-row.cols-6 { grid-template-columns: 2fr .8fr 1fr 1fr 1fr .9fr; }
+  .out-head { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3);
+              font-weight: 600; border-bottom: 1px solid var(--line); padding-top: 4px; }
+  .out-head > span, .out-row > span { text-align: right; }
+  .out-head > span:first-child, .out-row > .who { text-align: left; }
+  .out-row { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line-soft); cursor: pointer; text-align: left; }
+  .out-row:hover { background: var(--panel-2); }
+  .out-row > span { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .out-row > .who { font-family: var(--sans); font-weight: 550; display: flex; align-items: center; gap: 8px; }
+  .out-row[aria-expanded="true"] .tri { transform: rotate(90deg); }
+  .out-row .tot { font-weight: 650; }
+  .out-row .zero { color: var(--ink-3); }
+  .gap { border-left: 1px solid var(--line); height: 20px; }
+  .grouphead { display: grid; grid-template-columns: 1.5fr 2.4fr 18px 2.4fr; gap: 6px; padding: 12px 18px 2px;
+    font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; font-weight: 700; }
+  .grouphead > span { text-align: center; }
+  .grouphead .g1 { color: var(--team); }
+  .grouphead .g2 { color: var(--ship); }
+  .out-tot { background: var(--panel-2); font-weight: 650; }
+
+  .pipe { display: flex; flex-wrap: wrap; gap: 1px; background: var(--line-soft); border-top: 1px solid var(--line); }
+  .pipe .st { background: var(--panel); padding: 12px 16px; flex: 1 1 120px; }
+  .pipe .st .n { font-family: var(--mono); font-size: 22px; font-weight: 600; }
+  .pipe .st .l { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+  .pipe .st.hot .n { color: var(--content); }
+
+  .foot { padding: 10px 18px; font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+  .empty { padding: 18px; color: var(--ink-3); font-size: 13px; }
+  .flag { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 11px;
+    background: var(--panel-2); color: var(--ink-2); border: 1px solid var(--line); font-family: var(--sans); }
+  .ctl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+  input[type="range"] { accent-color: var(--accent); }
+  footer { max-width: 1180px; margin: 0 auto; padding: 0 20px 40px; color: var(--ink-3); font-size: 12px; line-height: 1.7; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 860px) {
+    .row-head, .rowlabels { grid-template-columns: 1.3fr .9fr .7fr .7fr; }
+    .row-head > .hide-s, .rowlabels > .hide-s { display: none; }
+    .out-head, .out-row { grid-template-columns: 1.2fr repeat(4,.5fr) 12px repeat(4,.5fr); font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ovia Spend</h1>
+  <div class="seg" id="zoom">
+    <button data-zoom="week" aria-pressed="true">Week</button>
+    <button data-zoom="month" aria-pressed="false">Month</button>
+  </div>
+  <select id="period"></select>
+  <div class="seg" id="view">
+    <button data-view="overall" aria-pressed="true">Overall</button>
+    <button data-view="strategist" aria-pressed="false">Strategist</button>
+    <button data-view="editor" aria-pressed="false">Editor</button>
+  </div>
+  <span class="sub" id="stamp"></span>
+  <span class="grow"></span>
+  <div class="ctl">
+    <label for="floor">Hide under</label>
+    <input type="range" id="floor" min="0" max="500" step="25" value="100" style="width:110px">
+    <span class="num" id="floorv" style="width:44px;display:inline-block">$100</span>
+  </div>
+  <button id="secBtn">Sections</button>
+  <button class="go" id="export">Export CSV</button>
+</header>
+
+<main>
+  <section draggable="false" data-sec="glance">
+    <h2><span class="grab" aria-hidden="true">⠿</span>At a glance <span class="grow"></span><button class="hide-btn" data-hide="glance" title="Hide this section" aria-label="Hide At a glance">×</button></h2>
+    <div class="glance" id="glance"></div>
+  </section>
+
+  <section draggable="false" data-sec="split">
+    <h2><span class="grab" aria-hidden="true">⠿</span>Where the money went <span class="grow"></span><button class="hide-btn" data-hide="split" title="Hide this section" aria-label="Hide Where the money went">×</button></h2>
+    <div class="pad">
+      <div class="split" id="split"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </section>
+
+  <section draggable="false" data-sec="output">
+    <h2><span class="grab" aria-hidden="true">⠿</span>Output <span class="note" id="outNote"></span><span class="grow"></span><button class="hide-btn" data-hide="output" title="Hide this section" aria-label="Hide Output">×</button></h2>
+    <div class="grouphead" id="outGroup"></div>
+    <div class="out-head" id="outHead"></div>
+    <div id="output"></div>
+    <div id="pipeline"></div>
+  </section>
+
+  <section draggable="false" data-sec="strategists">
+    <h2><span class="grab" aria-hidden="true">⠿</span>By strategist <span class="grow"></span><button class="hide-btn" data-hide="strategists" title="Hide this section" aria-label="Hide By strategist">×</button></h2>
+    <div class="rowlabels">
+      <span>Strategist</span><span>Spend</span><span class="hide-s">Share</span><span class="hide-s">Purch</span><span>CPA</span><span>ROAS</span>
+    </div>
+    <div id="strategists"></div>
+  </section>
+
+  <section draggable="false" data-sec="editors">
+    <h2><span class="grab" aria-hidden="true">⠿</span>By editor <span class="grow"></span><button class="hide-btn" data-hide="editors" title="Hide this section" aria-label="Hide By editor">×</button></h2>
+    <div class="rowlabels">
+      <span>Editor</span><span>Spend</span><span class="hide-s">Share</span><span class="hide-s">Purch</span><span>CPA</span><span>ROAS</span>
+    </div>
+    <div id="editors"></div>
+  </section>
+
+  <section draggable="false" data-sec="content">
+    <h2><span class="grab" aria-hidden="true">⠿</span>Content batches <span class="note">attributed to nobody</span><span class="grow"></span><button class="hide-btn" data-hide="content" title="Hide this section" aria-label="Hide Content batches">×</button></h2>
+    <div class="rowlabels">
+      <span>Batch</span><span>Spend</span><span class="hide-s">Share</span><span class="hide-s">Purch</span><span>CPA</span><span>ROAS</span>
+    </div>
+    <div id="content"></div>
+  </section>
+
+  <section draggable="false" data-sec="batches">
+    <h2><span class="grab" aria-hidden="true">⠿</span>Top batches <span class="note">click a column to sort</span><span class="grow"></span><button class="hide-btn" data-hide="batches" title="Hide this section" aria-label="Hide Top batches">×</button></h2>
+    <div class="tw"><table id="batches"></table></div>
+    <div class="foot" id="batchFoot"></div>
+  </section>
+</main>
+
+<footer id="prov"></footer>
+
+<script>
+"use strict";
+
+const P = (spend, purch, roas, strat, ed) =>
+  ({ spend, purch, value: +(spend * roas).toFixed(2), strategist: strat, editor: ed });
+const B = (n, label, type, x) => Object.assign({ n, label, type }, x || {});
+const TODAY = "2026-08-11";
+
+let WEEKS = [], MONTHS = [];
+const BATCH_LABEL = {};   // filled from the data file — Asana task names
+
+/* The Apps Script writes data.json next to this page; the page itself is a
+   static file committed once. That keeps the weekly job to a single small
+   commit and lets the view be iterated without touching the script. */
+function adopt(payload) {
+  const shape = p => ({
+    id: p.id, label: p.label, start: p.since, kind: p.kind,
+    total: p.total, batches: p.batches || {}, cb: p.cb || [],
+    trials: p.trials || { spend: 0, purch: 0, value: 0 },
+    other: p.other || { spend: 0, purch: 0, value: 0 },
+    output: p.output || null, editorOutput: p.editorOutput || null,
+    pipeline: (p.pipeline || []).map(s => ({ label: s.label, n: s.n,
+      hot: /ready to be edited/i.test(s.label) })),
+    exceptions: p.exceptions || {}, generated: p.generated
+  });
+  WEEKS = (payload.weeks || []).map(shape);
+  MONTHS = (payload.months || []).map(shape);
+  [...WEEKS, ...MONTHS].forEach(p => {
+    Object.keys(p.batches).forEach(n => { if (p.batches[n].label) BATCH_LABEL[n] = p.batches[n].label; });
+  });
+  if (WEEKS.length) PID = WEEKS[WEEKS.length - 1].id;
+}
+
+const TYPES = ["ideation", "iteration", "imitation"];
+const ICON = { ideation: "💡", iteration: "🔄", imitation: "🎭" };
+
+let ZOOM = "week", PID = WEEKS[WEEKS.length - 1].id, FLOOR = 100, VIEW = "overall";
+let SORT = { key: "spend", dir: -1 };
+
+const $ = s => document.querySelector(s);
+const money = n => "$" + Math.round(n).toLocaleString();
+const money2 = n => "$" + n.toFixed(2);
+const pct = n => (n * 100).toFixed(1) + "%";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function periods() {
+  if (ZOOM === "week") return WEEKS.map(w => ({ id: w.id, label: w.label, weeks: [w] }));
+  // Calendar months are pulled from Meta in their own right — never summed from
+  // weeks, which would drop or double-count the days at each month boundary.
+  if (MONTHS.length) return MONTHS.map(m => ({ id: m.id, label: m.label, weeks: [m] }));
+  const by = new Map();
+  WEEKS.forEach(w => { const k = w.start.slice(0, 7); if (!by.has(k)) by.set(k, []); by.get(k).push(w); });
+  return [...by].map(([k, ws]) => ({
+    id: k, weeks: ws,
+    label: new Date(k + "-01T00:00:00").toLocaleString("en", { month: "long", year: "numeric" })
+  }));
+}
+
+function merge(ws) {
+  const a = { total: { spend: 0, purch: 0, value: 0 }, batches: {}, cb: {},
+              trials: { spend: 0, purch: 0, value: 0 }, other: { spend: 0, purch: 0, value: 0 },
+              output: {}, editorOutput: {}, pipeline: null, nWeeks: ws.length };
+  ws.forEach(w => {
+    ["spend", "purch", "value"].forEach(k => a.total[k] += w.total[k]);
+    ["trials", "other"].forEach(b => ["spend", "purch", "value"].forEach(k => a[b][k] += w[b][k]));
+    for (const [n, b] of Object.entries(w.batches)) {
+      if (!a.batches[n]) a.batches[n] = { spend: 0, purch: 0, value: 0, strategist: b.strategist, editor: b.editor };
+      a.batches[n].spend += b.spend; a.batches[n].purch += b.purch; a.batches[n].value += b.value;
+    }
+    w.cb.forEach(c => {
+      if (!a.cb[c.id]) a.cb[c.id] = { id: c.id, spend: 0, purch: 0, value: 0, lump: c.lump };
+      a.cb[c.id].spend += c.spend; a.cb[c.id].purch += c.purch; a.cb[c.id].value += c.value;
+    });
+    if (w.output) for (const [who, o] of Object.entries(w.output)) {
+      if (!a.output[who]) a.output[who] = { scripted: [], launched: [] };
+      a.output[who].scripted.push(...o.scripted);
+      a.output[who].launched.push(...o.launched);
+    }
+    if (w.editorOutput) for (const [who, o] of Object.entries(w.editorOutput)) {
+      if (!a.editorOutput[who]) a.editorOutput[who] = { due: [], done: [] };
+      ["due", "done"].forEach(k => a.editorOutput[who][k].push(...o[k]));
+    }
+    if (w.pipeline) a.pipeline = w.pipeline;
+  });
+  a.cb = Object.values(a.cb);
+  return a;
+}
+
+function view() {
+  const list = periods();
+  const p = list.find(x => x.id === PID) || list[list.length - 1];
+  const i = list.indexOf(p);
+  return { p, cur: merge(p.weeks), prev: i > 0 ? merge(list[i - 1].weeks) : null, list };
+}
+
+function roll(agg, roleKey) {
+  const m = new Map();
+  for (const [n, b] of Object.entries(agg.batches)) {
+    const who = b[roleKey];
+    if (!who || who === "—") continue;
+    if (!m.has(who)) m.set(who, { who, spend: 0, purch: 0, value: 0, kids: [] });
+    const r = m.get(who);
+    r.spend += b.spend; r.purch += b.purch; r.value += b.value;
+    r.kids.push({ n, label: BATCH_LABEL[n] || "", ...b });
+  }
+  const out = [...m.values()].sort((x, y) => y.spend - x.spend);
+  out.forEach(r => r.kids.sort((a, b) => b.spend - a.spend));
+  return out;
+}
+const attributed = a => Object.values(a.batches).reduce((s, b) => s + b.spend, 0);
+const cbTotal = a => a.cb.reduce((s, c) => s + c.spend, 0);
+const cpa = r => r.purch ? r.spend / r.purch : null;
+const roas = r => r.spend ? r.value / r.spend : 0;
+const countType = (list, t) => list.filter(b => b.type === t).length;
+
+function delta(now, was, invert) {
+  if (was == null || !isFinite(was) || was === 0) return '<div class="d flat">—</div>';
+  const d = (now - was) / was;
+  if (Math.abs(d) < 0.005) return '<div class="d flat">flat</div>';
+  const good = invert ? d < 0 : d > 0;
+  return `<div class="d ${good ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d * 100).toFixed(0)}% vs prior</div>`;
+}
+
+function render() {
+  const { p, cur, prev, list } = view();
+  $("#period").innerHTML = list.map(x =>
+    `<option value="${x.id}" ${x.id === p.id ? "selected" : ""}>${esc(x.label)}</option>`).join("");
+  $("#stamp").textContent = ZOOM === "month" && cur.nWeeks < 4
+    ? `${cur.nWeeks} week${cur.nWeeks > 1 ? "s" : ""} of data` : "Mon–Sun · ad level";
+
+  const t = cur.total, att = attributed(cur), cb = cbTotal(cur);
+  const res = Math.max(0, t.spend - att - cb);
+
+  $("#glance").innerHTML = [
+    ["Total spend", money(t.spend), delta(t.spend, prev && prev.total.spend)],
+    ["Purchases", t.purch.toLocaleString(), delta(t.purch, prev && prev.total.purch)],
+    ["Blended CPA", t.purch ? money2(t.spend / t.purch) : "—",
+      delta(t.spend / t.purch, prev && prev.total.spend / prev.total.purch, true)],
+    ["Blended ROAS", (t.value / t.spend).toFixed(2),
+      delta(t.value / t.spend, prev && prev.total.value / prev.total.spend)],
+    ["Content share", pct(cb / t.spend), delta(cb / t.spend, prev && cbTotal(prev) / prev.total.spend)]
+  ].map(([k, v, d]) => `<div class="cell"><div class="k">${k}</div><div class="v">${v}</div>${d}</div>`).join("");
+
+  const parts = [
+    { k: "team", cls: "s-team", lab: "Team batches", amt: att },
+    { k: "content", cls: "s-content", lab: "Content batches", amt: cb },
+    { k: "residual", cls: "s-res", lab: "Trials + unattributed", amt: res }
+  ].filter(x => x.amt > 0);
+  $("#split").innerHTML = parts.map(x => {
+    const s = x.amt / t.spend;
+    return `<div class="${x.cls}" style="flex:${s}" title="${x.lab} ${pct(s)}">${s > 0.09 ? pct(s) : ""}</div>`;
+  }).join("");
+  $("#legend").innerHTML = parts.map(x => `<div class="item">
+      <span class="sw" style="background:var(--${x.k})"></span>
+      <span><span class="amt">${money(x.amt)}</span> <span class="lab">${x.lab} · ${pct(x.amt / t.spend)}</span></span></div>`).join("");
+
+  renderOutput(cur);
+  renderRows("#strategists", roll(cur, "strategist"), att, "team");
+  renderRows("#editors", roll(cur, "editor"), att, "residual");
+  renderCB(cur, t.spend);
+  renderBatches(cur);
+
+  $("#prov").innerHTML =
+    `Prototype. Spend for <b>Jul 20–26</b> is real, from the Growth Guide <span class="num">_SpendReport</span> tab; ` +
+    `<b>Aug 3–9</b> is real, from the v1 report page. Output counts, batch lists and the pipeline snapshot are real, ` +
+    `pulled live from Asana on 2026-08-11. <br>Two known approximations: per-id content-batch amounts on Aug 3–9 are ` +
+    `illustrative (v1 never stored them — the $11,897 total is real), and "scripted" counts the transition into ` +
+    `⚠️ Ready To Be Edited (approximated here by task creation, since the template creates tasks directly into that state). ` +
+    `<br><b>Known gap:</b> the Aug 3–9 batch list was hand-read off two non-overlapping screenshots, so roughly $170 of ` +
+    `small-batch spend is missing and per-person totals are a little light. Verified against Ads Manager: Kay's editor ` +
+    `total for the week is <span class="num">$458.26</span> across 7 ad sets. The live version reads the API and will reconcile exactly.`;
+}
+
+function renderOutput(agg) {
+  const el = $("#output"), head = $("#outHead"), grp = $("#outGroup");
+
+  if (VIEW === "editor") {
+    /* Two numbers: what was due this period, and what launched in it.
+       Uses a compact 6-column grid — the 10-column strategist layout left a
+       dead gap across the middle here. */
+    const people = Object.keys(agg.editorOutput || {});
+    $("#outNote").textContent = "batches due vs batches launched";
+    grp.innerHTML = "";
+    grp.style.display = "none";
+    head.className = "out-head cols-6";
+    head.innerHTML = `<span>Editor</span><span>Due</span>
+      <span>\u{1F4A1} Ideation</span><span>\u{1F504} Iteration</span><span>\u{1F3AD} Imitation</span>
+      <span>Launched</span>`;
+    if (!people.length) {
+      el.innerHTML = '<div class="empty">No Asana editor data stored for this period.</div>';
+      $("#pipeline").innerHTML = ""; return;
+    }
+    const rows = people.map(who => ({ who, ...agg.editorOutput[who] }))
+      .sort((a, b) => b.done.length - a.done.length || b.due.length - a.due.length);
+    const z = n => `<span class="${n ? "" : "zero"}">${n || "\u00B7"}</span>`;
+
+    el.innerHTML = rows.map((r, i) => `
+      <button class="out-row cols-6" aria-expanded="false" data-t="out-${i}">
+        <span class="who"><span class="tri">\u25B6</span>${esc(r.who)}</span>
+        ${z(r.due.length)}
+        ${TYPES.map(t => z(countType(r.done, t))).join("")}
+        <span class="tot">${r.done.length || "\u00B7"}</span>
+      </button>
+      <div class="kids" id="out-${i}">
+        <div class="tw"><table>
+          <thead><tr><th>Due this period</th><th>Due</th><th>Went live</th><th>vs due</th><th></th>
+                     <th>Launched in period</th><th>Type</th><th>Days to build</th></tr></thead>
+          <tbody>${Array.from({ length: Math.max(r.due.length, r.done.length) }, (_, k) => {
+            const q = r.due[k], d = r.done[k];
+            const verdict = !q ? "" : q.launched == null ? "not launched"
+              : q.slip > 0 ? "+" + q.slip + "d late" : q.slip < 0 ? Math.abs(q.slip) + "d early" : "on time";
+            const col = !q ? "" : q.launched == null ? "var(--neg)"
+              : q.slip > 2 ? "var(--content)" : "var(--ink-3)";
+            return `<tr>
+              <td class="txt name">${q ? "#" + q.n + " " + esc(q.label) : ""}</td>
+              <td class="txt">${q ? q.due.slice(5) : ""}</td>
+              <td class="txt">${q ? (q.launched ? q.launched.slice(5) : "\u2014") : ""}</td>
+              <td class="txt" style="color:${col}">${verdict}</td>
+              <td></td>
+              <td class="txt name">${d ? "#" + d.n + " " + esc(d.label) +
+                (d.early ? ' <span style="color:var(--ink-3)">(went live just before the period)</span>' : "") : ""}</td>
+              <td class="txt">${d ? ICON[d.type] : ""}</td>
+              <td>${d && d.days != null ? d.days : ""}</td></tr>`;
+          }).join("")}</tbody></table></div>
+      </div>`).join("");
+
+    const dueT = rows.reduce((s, r) => s + r.due.length, 0);
+    const tot  = rows.reduce((s, r) => s + r.done.length, 0);
+    el.innerHTML += `<div class="out-row cols-6 out-tot" style="cursor:default">
+        <span class="who" style="padding-left:18px">Total</span>
+        <span>${dueT}</span>
+        ${TYPES.map(t => `<span>${rows.reduce((s, r) => s + countType(r.done, t), 0)}</span>`).join("")}
+        <span class="tot">${tot}</span></div>`;
+    $("#pipeline").innerHTML =
+      `<div class="foot">Launched counts anything that shipped for this period, including a batch due here that ` +
+      `went live just before it. Batches due here but still unshipped stay uncounted until they go live \u2014 ` +
+      `expand a row for the dates. Due dates are still rolling out, so 5 of the ${tot} launched had none.</div>`;
+    return;
+  }
+
+  /* strategist + overall: scripted vs launched */
+  const people = Object.keys(agg.output);
+  $("#outNote").textContent = "scripted vs launched \u2014 the gap is the bottleneck";
+  grp.style.display = "";
+  head.className = "out-head";
+  grp.innerHTML = `<span></span><span class="g1">Scripted</span><span></span><span class="g2">Launched</span>`;
+  head.innerHTML = `<span>Strategist</span>
+    <span>\u{1F4A1}</span><span>\u{1F504}</span><span>\u{1F3AD}</span><span>Total</span><span></span>
+    <span>\u{1F4A1}</span><span>\u{1F504}</span><span>\u{1F3AD}</span><span>Total</span>`;
+  if (!people.length) {
+    el.innerHTML = '<div class="empty">No Asana output data stored for this period.</div>';
+    $("#pipeline").innerHTML = ""; return;
+  }
+  const rows = people.map(who => ({ who, ...agg.output[who] }))
+    .sort((a, b) => b.scripted.length - a.scripted.length);
+  const cell = (list, t) => { const n = countType(list, t); return `<span class="${n ? "" : "zero"}">${n || "\u00B7"}</span>`; };
+
+  el.innerHTML = rows.map((r, i) => `
+    <button class="out-row" aria-expanded="false" data-t="out-${i}">
+      <span class="who"><span class="tri">\u25B6</span>${esc(r.who)}</span>
+      ${TYPES.map(t => cell(r.scripted, t)).join("")}
+      <span class="tot">${r.scripted.length}</span>
+      <span class="gap"></span>
+      ${TYPES.map(t => cell(r.launched, t)).join("")}
+      <span class="tot">${r.launched.length}</span>
+    </button>
+    <div class="kids" id="out-${i}">
+      <div class="tw"><table>
+        <thead><tr><th>Scripted this period</th><th>Type</th><th>Launched this period</th><th>Type</th></tr></thead>
+        <tbody>${Array.from({ length: Math.max(r.scripted.length, r.launched.length) }, (_, k) => {
+          const a = r.scripted[k], b = r.launched[k];
+          return `<tr>
+            <td class="txt name">${a ? "#" + a.n + " " + esc(a.label) : ""}</td>
+            <td class="txt">${a ? ICON[a.type] : ""}</td>
+            <td class="txt name">${b ? "#" + b.n + " " + esc(b.label) : ""}</td>
+            <td class="txt">${b ? ICON[b.type] : ""}</td></tr>`;
+        }).join("")}</tbody></table></div>
+    </div>`).join("");
+
+  const sT = rows.reduce((s, r) => s + r.scripted.length, 0);
+  const lT = rows.reduce((s, r) => s + r.launched.length, 0);
+  el.innerHTML += `<div class="out-row out-tot" style="cursor:default">
+      <span class="who" style="padding-left:18px">Total</span>
+      ${TYPES.map(t => `<span>${rows.reduce((s, r) => s + countType(r.scripted, t), 0)}</span>`).join("")}
+      <span class="tot">${sT}</span><span class="gap"></span>
+      ${TYPES.map(t => `<span>${rows.reduce((s, r) => s + countType(r.launched, t), 0)}</span>`).join("")}
+      <span class="tot">${lT}</span></div>`;
+  renderPipeline(agg, sT, lT);
+}
+
+function renderPipeline(agg, sT, lT, queue, dueNow) {
+  if (!agg.pipeline) { $("#pipeline").innerHTML = ""; return; }
+  const note = sT != null
+    ? `Pipeline right now \u00B7 ${sT} scripted vs ${lT} launched this period`
+    : `Pipeline right now \u00B7 ${queue} with editors, of which ${dueNow} due today or undated \u2014 the rest are scheduled ahead`;
+  $("#pipeline").innerHTML = `<div class="pipe">${agg.pipeline.map(s =>
+    `<div class="st ${s.hot ? "hot" : ""}"><div class="n">${s.n}</div><div class="l">${s.label}</div></div>`).join("")}</div>
+    <div class="foot">${note}</div>`;
+}
+
+function renderRows(sel, rows, denom, color) {
+  const el = $(sel);
+  if (!rows.length) { el.innerHTML = '<div class="empty">Nothing attributed this period.</div>'; return; }
+  const max = rows[0].spend;
+  el.innerHTML = rows.map((r, i) => {
+    const kids = r.kids.filter(k => k.spend >= FLOOR).slice(0, 5);
+    const hidden = r.kids.length - kids.length;
+    const c = cpa(r);
+    return `<button class="row-head" aria-expanded="false" data-t="${sel.slice(1)}-${i}">
+        <span class="who"><span class="tri">▶</span>${esc(r.who)}</span>
+        <span class="bar-cell"><span class="fill" style="width:${(r.spend / max) * 100}%;background:var(--${color})"></span>${money(r.spend)}</span>
+        <span class="hide-s">${pct(r.spend / denom)}</span><span class="hide-s">${r.purch}</span>
+        <span>${c ? money2(c) : "—"}</span><span>${roas(r).toFixed(2)}</span>
+      </button>
+      <div class="kids" id="${sel.slice(1)}-${i}">
+        ${kids.length ? `<div class="tw"><table>
+          <thead><tr><th>Top batches</th><th>Spend</th><th>Purch</th><th>CPA</th><th>ROAS</th></tr></thead>
+          <tbody>${kids.map(k => `<tr><td class="txt name" title="${esc(k.label)}">#${k.n}${k.label ? " " + esc(k.label) : ""}</td>
+            <td>${money(k.spend)}</td><td>${k.purch}</td>
+            <td>${cpa(k) ? money2(cpa(k)) : "—"}</td><td>${roas(k).toFixed(2)}</td></tr>`).join("")}
+          </tbody></table></div>` : '<div class="empty">No batches over the floor.</div>'}
+        ${hidden > 0 ? `<div class="foot">+ ${hidden} more under ${money(FLOOR)}</div>` : ""}
+      </div>`;
+  }).join("");
+}
+
+function renderCB(agg, total) {
+  const rows = [...agg.cb].sort((a, b) => b.spend - a.spend);
+  const el = $("#content");
+  if (!rows.length) { el.innerHTML = '<div class="empty">No content-batch spend this period.</div>'; return; }
+  const shown = rows.filter(r => r.spend >= FLOOR).slice(0, 5);
+  const rest = rows.length - shown.length;
+  el.innerHTML = shown.map(r => {
+    const c = cpa(r);
+    return `<div class="row-head" style="cursor:default">
+      <span class="who">${esc(r.id)} ${r.lump ? '<span class="flag">not split by id in v1</span>' : ""}</span>
+      <span class="bar-cell"><span class="fill" style="width:${(r.spend / rows[0].spend) * 100}%;background:var(--content)"></span>${money(r.spend)}</span>
+      <span class="hide-s">${pct(r.spend / total)}</span><span class="hide-s">${r.purch}</span>
+      <span>${c ? money2(c) : "—"}</span><span>${roas(r).toFixed(2)}</span></div>`;
+  }).join("") + (rest > 0 ? `<div class="foot">+ ${rest} more under ${money(FLOOR)}</div>` : "");
+}
+
+function renderBatches(agg) {
+  const tot = agg.total.spend;
+  const all = Object.entries(agg.batches).map(([n, b]) => ({
+    n, label: BATCH_LABEL[n] || "", ...b, share: b.spend / tot, cpa: cpa(b), roas: roas(b)
+  }));
+  const shown = all.filter(b => b.spend >= FLOOR);
+  const cut = all.filter(b => b.spend < FLOOR);
+  const k = SORT.key;
+  shown.sort((a, b) => {
+    let x = a[k], y = b[k];
+    if (k === "n") { x = +a.n; y = +b.n; }
+    if (x == null) return 1; if (y == null) return -1;
+    return (x > y ? 1 : x < y ? -1 : 0) * SORT.dir;
+  });
+  const cols = [["strategist", "Strategist"], ["editor", "Editor"], ["n", "Batch"], ["spend", "Spend"],
+                ["share", "% of account"], ["cpa", "CPA"], ["roas", "ROAS"]];
+  $("#batches").innerHTML = `
+    <thead><tr>${cols.map(([key, lab]) =>
+      `<th data-k="${key}">${lab} <span class="car">${SORT.key === key ? (SORT.dir < 0 ? "▼" : "▲") : "↕"}</span></th>`).join("")}</tr></thead>
+    <tbody>${shown.map(b => `<tr>
+      <td class="txt">${esc(b.strategist)}</td>
+      <td class="txt" style="color:var(--ink-2)">${esc(b.editor)}</td>
+      <td class="txt name" title="${esc(b.label)}">#${b.n}${b.label ? " " + esc(b.label) : ""}</td>
+      <td>${money(b.spend)}</td><td>${pct(b.share)}</td>
+      <td>${b.cpa ? money2(b.cpa) : "—"}</td><td>${b.roas.toFixed(2)}</td></tr>`).join("")}
+    </tbody>`;
+  $("#batchFoot").textContent = cut.length
+    ? `+ ${cut.length} batches under ${money(FLOOR)}, ${money(cut.reduce((s, b) => s + b.spend, 0))} total`
+    : "";
+}
+
+function exportCsv() {
+  const { p, cur } = view();
+  const att = attributed(cur), tot = cur.total.spend;
+  const q = v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const L = [["section", "name", "detail", "spend", "purchases", "revenue", "cpa", "roas", "pct_of_account"]];
+  const push = (sec, name, det, r) => L.push([sec, name, det, r.spend.toFixed(2), r.purch, r.value.toFixed(2),
+    cpa(r) ? cpa(r).toFixed(2) : "", roas(r).toFixed(3), (r.spend / tot).toFixed(4)]);
+
+  push("total", "ALL SPEND", "", cur.total);
+  roll(cur, "strategist").forEach(r => push("strategist", r.who, "", r));
+  roll(cur, "editor").forEach(r => push("editor", r.who, "", r));
+  cur.cb.forEach(c => push("content_batch", c.id, "unowned", c));
+  push("trials", "Trials", "unowned", cur.trials);
+  push("other", "Other / unattributed", "unowned", cur.other);
+  Object.entries(cur.batches).forEach(([n, b]) => L.push(["batch",
+    "#" + n + (BATCH_LABEL[n] ? " " + BATCH_LABEL[n] : ""), b.strategist + " / " + b.editor,
+    b.spend.toFixed(2), b.purch, b.value.toFixed(2),
+    cpa(b) ? cpa(b).toFixed(2) : "", roas(b).toFixed(3), (b.spend / tot).toFixed(4)]));
+  for (const [who, o] of Object.entries(cur.output)) {
+    o.scripted.forEach(b => L.push(["scripted", who, "#" + b.n + " " + b.label + " (" + b.type + ")", "", "", "", "", "", ""]));
+    o.launched.forEach(b => L.push(["launched", who, "#" + b.n + " " + b.label + " (" + b.type + ")", "", "", "", "", "", ""]));
+  }
+  (cur.pipeline || []).forEach(s => L.push(["pipeline", s.label, "", "", s.n, "", "", "", ""]));
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([L.map(r => r.map(q).join(",")).join("\n")], { type: "text/csv" }));
+  a.download = `ovia-spend-${p.id}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------- preset views ----------
+   Each preset is just a set of visible sections plus which cut the Output
+   section shows. Hiding a section by hand afterwards still works — the preset
+   is a starting point, not a lock. */
+const VIEWS = {
+  overall:    ["glance", "split", "output", "strategists", "editors", "content", "batches"],
+  strategist: ["glance", "split", "output", "strategists", "batches"],
+  editor:     ["glance", "output", "editors", "batches"]
+};
+
+function setView(v) {
+  VIEW = v;
+  [...$("#view").children].forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
+  layout.hidden = DEFAULT_ORDER.filter(k => !VIEWS[v].includes(k));
+  saveLayout();
+  render();
+  applyLayout();
+}
+
+/* ---------- layout: hide / reorder sections ----------
+   Stored in localStorage, so it is this browser only — exactly the property
+   Leo liked in the survey viewer: rearrange your own view without changing
+   what anyone else sees. */
+const SEC_TITLES = {
+  glance: "At a glance", split: "Where the money went", output: "Output",
+  strategists: "By strategist", editors: "By editor",
+  content: "Content batches", batches: "Top batches"
+};
+const DEFAULT_ORDER = Object.keys(SEC_TITLES);
+const LS = "ovia-spend-layout";
+
+let layout = (() => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS));
+    if (!raw || !Array.isArray(raw.order)) throw 0;
+    const order = raw.order.filter(k => SEC_TITLES[k]);
+    DEFAULT_ORDER.forEach(k => { if (!order.includes(k)) order.push(k); });   // new sections appear
+    if (raw.view) VIEW = raw.view;
+    return { order, hidden: (raw.hidden || []).filter(k => SEC_TITLES[k]) };
+  } catch (e) { return { order: DEFAULT_ORDER.slice(), hidden: [] }; }
+})();
+
+const saveLayout = () => { try { localStorage.setItem(LS, JSON.stringify({ ...layout, view: VIEW })); } catch (e) {} };
+const secEl = k => document.querySelector(`section[data-sec="${k}"]`);
+
+function applyLayout() {
+  const main = document.querySelector("main");
+  layout.order.forEach(k => { const el = secEl(k); if (el) main.appendChild(el); });
+  DEFAULT_ORDER.forEach(k => { const el = secEl(k); if (el) el.hidden = layout.hidden.includes(k); });
+  const n = layout.hidden.length;
+  $("#secBtn").textContent = n ? `Sections (${n} hidden)` : "Sections";
+}
+
+function hideSection(k) {
+  if (!layout.hidden.includes(k)) layout.hidden.push(k);
+  saveLayout(); applyLayout();
+}
+
+function togglePanel(e) {
+  const open = document.querySelector(".panel-pop");
+  if (open) { open.remove(); return; }
+  const pop = document.createElement("div");
+  pop.className = "panel-pop";
+  const r = e.currentTarget.getBoundingClientRect();
+  pop.style.top = (r.bottom + 8) + "px";
+  pop.style.left = Math.max(8, r.right - 260) + "px";
+  pop.innerHTML =
+    `<div class="head"><button data-all="show">Show all</button><button data-all="reset">Reset order</button></div>` +
+    layout.order.map(k => `<label class="row">
+        <input type="checkbox" data-k="${k}" ${layout.hidden.includes(k) ? "" : "checked"}>
+        <span>${SEC_TITLES[k]}</span></label>`).join("");
+  document.body.appendChild(pop);
+
+  pop.querySelectorAll("input[data-k]").forEach(cb => cb.onchange = () => {
+    const k = cb.dataset.k;
+    layout.hidden = cb.checked ? layout.hidden.filter(x => x !== k) : layout.hidden.concat([k]);
+    saveLayout(); applyLayout();
+  });
+  pop.querySelector('[data-all="show"]').onclick = () => {
+    layout.hidden = []; saveLayout(); applyLayout(); pop.remove();
+  };
+  pop.querySelector('[data-all="reset"]').onclick = () => {
+    layout = { order: DEFAULT_ORDER.slice(), hidden: [] }; saveLayout(); applyLayout(); pop.remove();
+  };
+  setTimeout(() => {
+    const close = ev => {
+      if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener("click", close); }
+    };
+    document.addEventListener("click", close);
+  }, 0);
+}
+
+/* Sections are only draggable while the ⠿ handle is held — otherwise you could
+   not select a number out of a table. */
+let dragKey = null;
+document.addEventListener("mousedown", e => {
+  const s = e.target.closest("section[data-sec]");
+  if (s) s.draggable = !!e.target.closest(".grab");
+});
+document.addEventListener("dragstart", e => {
+  const s = e.target.closest("section[data-sec]");
+  if (!s) return;
+  dragKey = s.dataset.sec;
+  s.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", dragKey);
+});
+document.addEventListener("dragover", e => {
+  const s = e.target.closest("section[data-sec]");
+  if (!s || !dragKey || s.dataset.sec === dragKey) return;
+  e.preventDefault();
+  document.querySelectorAll("section.over").forEach(x => x.classList.remove("over"));
+  s.classList.add("over");
+});
+document.addEventListener("drop", e => {
+  const s = e.target.closest("section[data-sec]");
+  document.querySelectorAll("section.over").forEach(x => x.classList.remove("over"));
+  if (!s || !dragKey || s.dataset.sec === dragKey) return;
+  e.preventDefault();
+  const to = s.dataset.sec;
+  const order = layout.order.filter(k => k !== dragKey);
+  order.splice(order.indexOf(to), 0, dragKey);
+  layout.order = order;
+  saveLayout(); applyLayout();
+});
+document.addEventListener("dragend", () => {
+  dragKey = null;
+  document.querySelectorAll("section[data-sec]").forEach(x => {
+    x.draggable = false;
+    x.classList.remove("dragging", "over");
+  });
+});
+
+$("#secBtn").addEventListener("click", togglePanel);
+$("#view").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (b) setView(b.dataset.view);
+});
+
+document.addEventListener("click", e => {
+  const hideBtn = e.target.closest(".hide-btn");
+  if (hideBtn) { hideSection(hideBtn.dataset.hide); return; }
+  const head = e.target.closest("[aria-expanded]");
+  if (head) {
+    const open = head.getAttribute("aria-expanded") === "true";
+    head.setAttribute("aria-expanded", String(!open));
+    document.getElementById(head.dataset.t).classList.toggle("open", !open);
+    return;
+  }
+  const th = e.target.closest("#batches th");
+  if (th) { const k = th.dataset.k; SORT = { key: k, dir: SORT.key === k ? -SORT.dir : -1 }; renderBatches(view().cur); }
+});
+$("#zoom").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  ZOOM = b.dataset.zoom;
+  [...$("#zoom").children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  PID = periods().slice(-1)[0].id; render();
+});
+$("#period").addEventListener("change", e => { PID = e.target.value; render(); });
+$("#floor").addEventListener("input", e => { FLOOR = +e.target.value; $("#floorv").textContent = "$" + FLOOR; render(); });
+$("#export").addEventListener("click", exportCsv);
+
+[...$("#view").children].forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === VIEW)));
+
+fetch("./data.json?t=" + Date.now())
+  .then(r => { if (!r.ok) throw new Error("data.json " + r.status); return r.json(); })
+  .then(payload => {
+    adopt(payload);
+    if (!WEEKS.length) {
+      document.querySelector("main").innerHTML =
+        '<section><div class="empty">No weeks stored yet. Run <span class="num">backfillWeeks</span> ' +
+        'or wait for Monday 2am.</div></section>';
+      return;
+    }
+    render();
+    applyLayout();
+    $("#prov").innerHTML = "Generated " + (WEEKS[WEEKS.length - 1].generated || "") +
+      " by the Ovia Spend Report v2 Apps Script. Meta pulled at ad level; roles and output from Asana.";
+  })
+  .catch(e => {
+    document.querySelector("main").innerHTML =
+      '<section><div class="empty">Could not load data.json — ' + e.message + '</div></section>';
+  });
+</script>
+</body>
+</html>
